@@ -9,21 +9,21 @@
     <style>
         :root { --primary: #6c5ce7; --primary-light: #efeeff; --bg: #f8f9ff; --gray-text: #636e72; --dash-color: #d1d1f0; --deep-gray: #4a4a4a; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 12px; padding-bottom: 80px; }
         
+        /* 鎖定 V9.6 的核心穩定樣式 */
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 12px; padding-bottom: 80px; }
         body.modal-open { overflow: hidden; position: fixed; width: 100%; }
 
-        /* 主容器 */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .header h2 { margin: 0; color: var(--primary); font-size: 22px; font-weight: 800; cursor: pointer; }
         .settings-icon { font-size: 26px; cursor: pointer; color: #ccc; padding: 5px; }
         
-        .card { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); margin-bottom: 12px; width: 100%; }
-        .order-item { border-left: 5px solid var(--primary); padding: 12px; position: relative; transition: 0.3s; }
+        .card { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); margin-bottom: 12px; width: 100%; position: relative; }
+        .order-item { border-left: 5px solid var(--primary); padding: 12px; }
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-        .title-text { font-size: 17px; font-weight: 800; color: #333; flex: 1; margin-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .title-text { font-size: 17px; font-weight: 800; color: #333; flex: 1; margin-left: 6px; }
         
-        .tag { padding: 3px 8px; border-radius: 6px; font-size: 13px; margin-right: 4px; font-weight: 600; color: #444; display: inline-block; margin-bottom: 4px; }
+        .tag { padding: 3px 8px; border-radius: 6px; font-size: 13px; margin-right: 4px; font-weight: 600; color: #444; display: inline-block; }
         .tag-yellow { background: #fff9db; }
         .tag-pink { background: #ffe3e3; }
         .tag-blue { background: #e7f5ff; }
@@ -44,6 +44,7 @@
         
         #toast { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 20px; border-radius: 20px; z-index: 11000; }
 
+        /* V9.6 萬無一失全屏實心背景 */
         .modal { 
             display: none; 
             position: fixed; 
@@ -67,7 +68,7 @@
         .section-header { font-size: 16px; font-weight: 800; padding: 12px; background: white; border-radius: 10px; margin-top: 10px; display: flex; justify-content: space-between; }
         .collapse-content { display: none; padding: 10px 0; }
         
-        .btn-export { background: #ffeaa7; color: #d6a312; }
+        .btn-export { background: #ffeaa7; color: #d6a312; margin-top: 20px; }
         .btn-import { background: #d1f7d1; color: #2d8a2d; margin-top: 10px; }
     </style>
 </head>
@@ -162,15 +163,17 @@ let config = JSON.parse(localStorage.getItem('m_conf_v9') || '{"platform":[],"se
 let editingId = null;
 let currentTabArrived = false;
 
+// 基礎功能
 function saveTitle() { localStorage.setItem('MU_APP_TITLE', document.getElementById('mainTitle').innerText); }
 function initTitle() { document.getElementById('mainTitle').innerText = localStorage.getItem('MU_APP_TITLE') || '📦 沐沐的週邊✨'; }
-
 function toggleModal(id, show) {
     const m = document.getElementById(id); m.style.display = show ? 'block' : 'none';
     if(show) { document.body.classList.add('modal-open'); m.scrollTo(0,0); }
     else { document.body.classList.remove('modal-open'); }
 }
+function showToast() { const t = document.getElementById('toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 1500); }
 
+// 訂單操作
 function addSubItem(cid, data=null, anchorEl=null) {
     const sc = document.querySelector(`#${cid} .subContainer`);
     const div = document.createElement('div'); div.className = 'item-input-group';
@@ -183,20 +186,16 @@ function addSubItem(cid, data=null, anchorEl=null) {
     if(data) { div.querySelector('.p-series').value=data.s; div.querySelector('.p-char').value=data.c; div.querySelector('.p-type').value=data.t; div.querySelector('.p-name').value=data.n; div.querySelector('.p-price').value=data.p; div.querySelector('.p-qty').value=data.q; }
     calcPickup(cid);
 }
-
 function copySubItem(btn, cid) {
     const p = btn.parentElement;
     const data = { s: p.querySelector('.p-series').value, c: p.querySelector('.p-char').value, t: p.querySelector('.p-type').value, n: p.querySelector('.p-name').value, p: p.querySelector('.p-price').value, q: p.querySelector('.p-qty').value };
     addSubItem(cid, data, p);
 }
-
 function removeSubItem(btn, cid) { if(document.querySelectorAll(`#${cid} .item-input-group`).length > 1) { btn.parentElement.remove(); calcPickup(cid); } }
-
 function calcPickup(cid) { 
     const box = document.getElementById(cid); const isE = cid === 'editModal';
     const status = box.querySelector(isE ? '#edit_status' : '#sel_status').value;
-    let itemSum = 0;
-    box.querySelectorAll('.item-input-group').forEach(r => { itemSum += (Number(r.querySelector('.p-price').value) || 0) * (Number(r.querySelector('.p-qty').value) || 1); });
+    let itemSum = 0; box.querySelectorAll('.item-input-group').forEach(r => { itemSum += (Number(r.querySelector('.p-price').value) || 0) * (Number(r.querySelector('.p-qty').value) || 1); });
     const unpaidInput = box.querySelector(isE ? '#edit_unpaid' : '#unpaid_fee');
     if (status.includes('貨到付款')) unpaidInput.value = itemSum;
     const u = Number(unpaidInput.value)||0, s = Number(box.querySelector(isE?'#edit_shipping':'#shipping')?.value)||0, p = Number(box.querySelector(isE?'#edit_packing':'#packing_fee')?.value)||0;
@@ -223,8 +222,6 @@ function handleSave(cid) {
     saveToLocal(); renderOrders(currentTabArrived); showToast();
 }
 
-function clearMainForm() { ['seller', 'order_note', 'unpaid_fee', 'shipping', 'packing_fee', 'pickup_total'].forEach(id => document.getElementById(id).value = ''); document.querySelector('#mainSubContainer').innerHTML = ''; addSubItem('mainInputForm'); }
-
 function renderOrders(isArrived) {
     currentTabArrived = isArrived; let filtered = orders.filter(o => o.arrived === isArrived);
     const list = document.getElementById('mainList');
@@ -236,43 +233,26 @@ function renderOrders(isArrived) {
                 <div class="title-text">${o.platform} - ${o.seller}</div>
                 <div style="font-size:13px;"><span class="btn-action-text" onclick="editOrder(${o.id})">編輯</span> | <span class="btn-action-text" onclick="del(${o.id})">刪除</span></div>
             </div>
-            <div style="margin:5px 0;"><span class="tag ${getTagClass(o.status)}">${o.status}</span><span class="tag tag-default">${o.note||'無備註'}</span></div>
+            <div style="margin:5px 0;">
+                <span class="tag ${getTagClass(o.status)}">${o.status}</span>
+                <span class="tag tag-default">${new Date(o.time).toLocaleDateString()}</span>
+            </div>
             <div style="font-size:14px;color:#444;">${o.items.map(i=>`<div>· [${i.s}] ${i.c} ${i.n} $${i.p}x${i.q}</div>`).join('')}</div>
             <div class="summary-grid"><div class="summary-cell text-purple">取貨：$${o.pickup}</div><div class="summary-cell align-right text-red">總計：$${o.itemTotal - o.unpaid + o.pickup}</div></div>
         </div>`).join('');
 }
 
-function editOrder(id) {
-    const o = orders.find(x => x.id === id); editingId = id; toggleModal('editModal', true);
-    document.getElementById('edit_platform').value = o.platform; document.getElementById('edit_seller').value = o.seller; document.getElementById('edit_status').value = o.status; document.getElementById('edit_note').value = o.note; document.getElementById('edit_unpaid').value = o.unpaid; document.getElementById('edit_shipping').value = o.shipping; document.getElementById('edit_packing').value = o.packing; document.getElementById('edit_pickup').value = o.pickup;
-    document.getElementById('edit_time_picker').value = o.time.slice(0,16); document.getElementById('edit_arrive_picker').value = o.arriveTime ? o.arriveTime.slice(0,16) : '';
-    const sc = document.getElementById('editSubContainer'); sc.innerHTML = ''; o.items.forEach(i => addSubItem('editModal', i));
+// 萬無一失的 Excel 處理模組
+function formatExcelDate(d) {
+    if (!d) return new Date().toISOString();
+    if (!isNaN(d) && typeof d === 'number') return new Date((d - 25569) * 86400 * 1000).toISOString();
+    let res = new Date(d); return isNaN(res.getTime()) ? new Date().toISOString() : res.toISOString();
 }
 
-function toggleArrive(id) { const o = orders.find(x => x.id === id); o.arrived = !o.arrived; o.arriveTime = o.arrived ? new Date().toISOString() : null; saveToLocal(); renderOrders(currentTabArrived); }
-function switchTab(ar) { document.getElementById('tab-arrived').className = ar ? 'tab active' : 'tab'; document.getElementById('tab-unarrived').className = ar ? 'tab' : 'tab active'; renderOrders(ar); }
-function saveToLocal() { localStorage.setItem('MU_DATA_V9', JSON.stringify(orders)); }
-function getTagClass(s) { if(s.includes('已匯款/已下單')) return 'tag-pink'; if(s.includes('已匯款')) return 'tag-yellow'; if(s.includes('已下單')) return 'tag-green'; return 'tag-blue'; }
-function del(id) { if(confirm('確定刪除？')) { orders = orders.filter(x=>x.id!==id); saveToLocal(); renderOrders(currentTabArrived); } }
-
-function updateDropdowns() {
-    const opt = (arr, h) => `<option value="">${h}</option>` + arr.map(x=>`<option value="${x}">${x}</option>`).join('');
-    ['sel_platform', 'edit_platform'].forEach(id => document.getElementById(id).innerHTML = opt(config.platform, '選擇平台'));
-    document.getElementById('list_series_all').innerHTML = config.series.map(s => `<option value="${s}">`).join('');
-    renderConfig();
-}
-
-function addOption(k) { const v = document.getElementById('new_opt_val').value.trim(); if(v) { config[k].push(v); localStorage.setItem('m_conf_v9', JSON.stringify(config)); document.getElementById('new_opt_val').value = ''; updateDropdowns(); } }
-function renderConfig() { document.getElementById('configDisplay').innerHTML = Object.keys(config).map(k => `<div style="background:white;padding:8px;border-radius:8px;margin-bottom:5px;"><small>${k}</small><div style="display:flex;flex-wrap:wrap;gap:5px;">${config[k].map((v, i) => `<span style="background:#eee;padding:2px 8px;border-radius:5px;font-size:12px;">${v} <b onclick="delOpt('${k}',${i})">×</b></span>`).join('')}</div></div>`).join(''); }
-function delOpt(k, i) { config[k].splice(i,1); updateDropdowns(); }
-function toggleCollapse(id, el) { const c = document.getElementById(id); const s = c.style.display === 'block'; c.style.display = s ? 'none' : 'block'; el.querySelector('span:last-child').innerText = s ? '⬇️' : '⬆️'; }
-function showToast() { const t = document.getElementById('toast'); t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 1500); }
-
-// --- Excel 匯出與匯入 ---
 function exportToExcel() {
     const data = [];
     orders.forEach(o => o.items.forEach(i => data.push({ "日期": o.time.slice(0,10), "平台": o.platform, "賣家": o.seller, "系列": i.s, "人物": i.c, "名稱": i.n, "單價": i.p, "數量": i.q, "狀態": o.status, "備註": o.note, "未付": o.unpaid, "運費": o.shipping, "包手": o.packing })));
-    const ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "週邊");
+    const ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "週邊備份");
     XLSX.writeFile(wb, `沐沐備份_${new Date().toLocaleDateString()}.xlsx`);
 }
 
@@ -281,67 +261,63 @@ function processExcelImport(e) {
     const reader = new FileReader();
     reader.onload = function(evt) {
         const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
-        
-        if(!json.length) { alert("檔案內無資料！"); return; }
-        if(!confirm(`偵測到 ${json.length} 筆項目，是否還原？`)) return;
+        const wb = XLSX.read(data, {type: 'array'});
+        const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        if(!json.length) { alert("找不到資料！"); return; }
+        if(!confirm(`準備還原 ${json.length} 筆資料，將會覆蓋目前列表，確定嗎？`)) return;
 
-        const newOrdersMap = {};
-        json.forEach((row, index) => {
-            // 修正合併邏輯：去除字串空格，確保日期格式一致
-            const dateStr = row['日期'] ? row['日期'].toString().trim() : "no-date";
-            const sellerStr = row['賣家'] ? row['賣家'].toString().trim() : "no-seller";
-            const platformStr = row['平台'] ? row['平台'].toString().trim() : "no-platform";
-            const key = `${dateStr}_${sellerStr}_${platformStr}`;
-
-            if(!newOrdersMap[key]) {
-                newOrdersMap[key] = {
-                    id: Date.now() + index,
-                    time: row['日期'] ? new Date(row['日期']).toISOString() : new Date().toISOString(),
-                    platform: platformStr,
-                    seller: sellerStr,
-                    status: row['狀態'] || "已匯款/已下單",
-                    note: row['備註'] || "",
-                    unpaid: Number(row['未付']) || 0,
-                    shipping: Number(row['運費']) || 0,
-                    packing: Number(row['包手']) || 0,
-                    items: [],
-                    arrived: false, 
-                    arriveTime: null
+        const map = {};
+        json.forEach((row, idx) => {
+            const dateISO = formatExcelDate(row['日期']);
+            const key = `${dateISO.slice(0,10)}_${row['賣家']}_${row['平台']}`;
+            if(!map[key]) {
+                map[key] = {
+                    id: Date.now() + idx, time: dateISO, platform: row['平台']||"其他", seller: row['賣家']||"未知",
+                    status: row['狀態']||"已匯款/已下單", note: row['備註']||"", unpaid: Number(row['未付'])||0,
+                    shipping: Number(row['運費'])||0, packing: Number(row['包手'])||0, items: [], arrived: false
                 };
             }
-            newOrdersMap[key].items.push({
-                s: row['系列'] || "",
-                c: row['人物'] || "",
-                t: "",
-                n: row['名稱'] || "",
-                p: Number(row['單價']) || 0,
-                q: Number(row['數量']) || 1
-            });
-
+            map[key].items.push({ s: row['系列']||"", c: row['人物']||"", t: "", n: row['名稱']||"", p: Number(row['單價'])||0, q: Number(row['數量'])||1 });
+            // 更新設定檔
             if(row['平台'] && !config.platform.includes(row['平台'])) config.platform.push(row['平台']);
             if(row['系列'] && !config.series.includes(row['系列'])) config.series.push(row['系列']);
             if(row['人物'] && !config.char.includes(row['人物'])) config.char.push(row['人物']);
         });
-
-        orders = Object.values(newOrdersMap).map(o => {
-            let itemTotal = 0;
-            o.items.forEach(it => itemTotal += it.p * it.q);
-            o.itemTotal = itemTotal;
-            o.pickup = o.unpaid + o.shipping + o.packing;
-            return o;
+        orders = Object.values(map).map(o => {
+            let sum = 0; o.items.forEach(i => sum += i.p * i.q);
+            o.itemTotal = sum; o.pickup = o.unpaid + o.shipping + o.packing; return o;
         });
-
         saveToLocal(); localStorage.setItem('m_conf_v9', JSON.stringify(config));
-        updateDropdowns(); renderOrders(false);
-        alert("還原成功！");
+        updateDropdowns(); renderOrders(false); alert("還原完成！格式已校正。");
     };
-    reader.readAsArrayBuffer(file);
-    e.target.value = ""; 
+    reader.readAsArrayBuffer(file); e.target.value = "";
 }
 
+// 其餘 UI 邏輯
+function clearMainForm() { ['seller', 'order_note', 'unpaid_fee', 'shipping', 'packing_fee', 'pickup_total'].forEach(id => document.getElementById(id).value = ''); document.querySelector('#mainSubContainer').innerHTML = ''; addSubItem('mainInputForm'); }
+function toggleArrive(id) { const o = orders.find(x => x.id === id); o.arrived = !o.arrived; o.arriveTime = o.arrived ? new Date().toISOString() : null; saveToLocal(); renderOrders(currentTabArrived); }
+function switchTab(ar) { document.getElementById('tab-arrived').className = ar ? 'tab active' : 'tab'; document.getElementById('tab-unarrived').className = ar ? 'tab' : 'tab active'; renderOrders(ar); }
+function editOrder(id) {
+    const o = orders.find(x => x.id === id); editingId = id; toggleModal('editModal', true);
+    document.getElementById('edit_platform').value = o.platform; document.getElementById('edit_seller').value = o.seller; document.getElementById('edit_status').value = o.status; document.getElementById('edit_note').value = o.note; document.getElementById('edit_unpaid').value = o.unpaid; document.getElementById('edit_shipping').value = o.shipping; document.getElementById('edit_packing').value = o.packing; document.getElementById('edit_pickup').value = o.pickup;
+    document.getElementById('edit_time_picker').value = o.time.slice(0,16); document.getElementById('edit_arrive_picker').value = o.arriveTime ? o.arriveTime.slice(0,16) : '';
+    const sc = document.getElementById('editSubContainer'); sc.innerHTML = ''; o.items.forEach(i => addSubItem('editModal', i));
+}
+function saveToLocal() { localStorage.setItem('MU_DATA_V9', JSON.stringify(orders)); }
+function getTagClass(s) { if(s.includes('已匯款/已下單')) return 'tag-pink'; if(s.includes('已匯款')) return 'tag-yellow'; if(s.includes('已下單')) return 'tag-green'; return 'tag-blue'; }
+function del(id) { if(confirm('確定刪除？')) { orders = orders.filter(x=>x.id!==id); saveToLocal(); renderOrders(currentTabArrived); } }
+function updateDropdowns() {
+    const opt = (arr, h) => `<option value="">${h}</option>` + arr.map(x=>`<option value="${x}">${x}</option>`).join('');
+    ['sel_platform', 'edit_platform'].forEach(id => document.getElementById(id).innerHTML = opt(config.platform, '選擇平台'));
+    document.getElementById('list_series_all').innerHTML = config.series.map(s => `<option value="${s}">`).join('');
+    renderConfig();
+}
+function addOption(k) { const v = document.getElementById('new_opt_val').value.trim(); if(v) { config[k].push(v); localStorage.setItem('m_conf_v9', JSON.stringify(config)); document.getElementById('new_opt_val').value = ''; updateDropdowns(); } }
+function renderConfig() { document.getElementById('configDisplay').innerHTML = Object.keys(config).map(k => `<div style="background:white;padding:8px;border-radius:8px;margin-bottom:5px;"><small>${k}</small><div style="display:flex;flex-wrap:wrap;gap:5px;">${config[k].map((v, i) => `<span style="background:#eee;padding:2px 8px;border-radius:5px;font-size:12px;">${v} <b onclick="delOpt('${k}',${i})">×</b></span>`).join('')}</div></div>`).join(''); }
+function delOpt(k, i) { config[k].splice(i,1); updateDropdowns(); }
+function toggleCollapse(id, el) { const c = document.getElementById(id); const s = c.style.display === 'block'; c.style.display = s ? 'none' : 'block'; el.querySelector('span:last-child').innerText = s ? '⬇️' : '⬆️'; }
+
+// 初始化
 initTitle(); updateDropdowns(); addSubItem('mainInputForm'); renderOrders(false);
 Sortable.create(document.getElementById('mainSubContainer'), { handle: '.btn-drag-sub', animation: 150 });
 Sortable.create(document.getElementById('editSubContainer'), { handle: '.btn-drag-sub', animation: 150 });
