@@ -73,7 +73,6 @@
         .filter-list { font-size: 13px; color: #636e72; margin-top: 35px; }
         .filter-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #d1d1f0; }
         .btn-export-all { background: #ffeaa7; color: #d6a312; padding: 15px; width: 100%; border-radius: 12px; font-size: 16px; margin-top: 20px; font-weight: 800; }
-        /* 新增按鈕樣式 */
         .btn-import-all { background: #e0e0e0; color: #666; padding: 15px; width: 100%; border-radius: 12px; font-size: 16px; margin-top: 10px; font-weight: 800; }
         .expand-btn { text-align: center; color: var(--primary); font-size: 14px; cursor: pointer; padding: 8px; font-weight: 800; }
     </style>
@@ -281,89 +280,67 @@ function exportToExcel() {
     const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "完整週邊清單"); XLSX.writeFile(wb, `沐沐週邊全紀錄_${new Date().toLocaleDateString()}.xlsx`);
 }
 
-// --- 新增功能：匯入邏輯 ---
-
 function triggerImport() { document.getElementById('importFile').click(); }
 
+// --- 修正後的匯入函數：解決日期跑掉的問題 ---
 function importFromExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true }); // 強制 Excel 讀取日期物件
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
         
         if (json.length === 0) return alert('檔案內沒有資料！');
-        if (!confirm('匯入將會與現有資料合併（重複的建立時間會視為新訂單），確定要繼續嗎？')) return;
+        if (!confirm('將匯入資料並合併，重複的建立時間會視為新訂單，確定嗎？')) return;
 
-        // 用於合併同筆訂單的 Temp Map (Key: 建立時間+平台+賣家)
         const orderGroup = {};
+        const parseDate = (val) => {
+            if (!val || val === "未到貨") return null;
+            // 處理如果是 Excel 內建日期物件
+            if (val instanceof Date) return val.toISOString();
+            // 處理中文「上午/下午」格式字串
+            let cleanStr = String(val).replace(/上午/g, 'AM').replace(/下午/g, 'PM');
+            const d = new Date(cleanStr);
+            return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+        };
 
         json.forEach(row => {
-            // 處理時間格式，如果 Excel 是數字格式要轉回 JS Date
-            const parseDate = (val) => {
-                if (!val || val === "未到貨") return null;
-                const d = new Date(val);
-                return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
-            };
-
-            const timeStr = row["建立時間"] || new Date().toISOString();
+            const timeRaw = row["建立時間"];
+            const timeISO = parseDate(timeRaw);
             const platform = row["平台"] || "未知";
             const seller = row["賣家"] || "未知";
-            const groupKey = `${timeStr}_${platform}_${seller}`;
+            const groupKey = `${timeISO}_${platform}_${seller}`;
 
             if (!orderGroup[groupKey]) {
                 orderGroup[groupKey] = {
                     id: Date.now() + Math.floor(Math.random() * 100000),
-                    platform: platform,
-                    seller: seller,
-                    status: row["訂單狀態"] || "已匯款/未下單",
-                    note: row["備註"] || "",
-                    unpaid: Number(row["未付金額(雜費1)"]) || 0,
-                    shipping: Number(row["運費(雜費2)"]) || 0,
-                    packing: Number(row["包手(雜費3)"]) || 0,
-                    pickup: Number(row["該筆取貨總額"]) || 0,
-                    itemTotal: Number(row["訂單商品總額"]) || 0,
-                    time: parseDate(timeStr),
-                    arrived: row["到貨時間"] !== "未到貨",
-                    arriveTime: parseDate(row["到貨時間"]),
-                    items: []
+                    platform: platform, seller: seller, status: row["訂單狀態"] || "已匯款/未下單", note: row["備註"] || "",
+                    unpaid: Number(row["未付金額(雜費1)"]) || 0, shipping: Number(row["運費(雜費2)"]) || 0, packing: Number(row["包手(雜費3)"]) || 0,
+                    pickup: Number(row["該筆取貨總額"]) || 0, itemTotal: Number(row["訂單商品總額"]) || 0,
+                    time: timeISO, arrived: row["到貨時間"] !== "未到貨", arriveTime: parseDate(row["到貨時間"]), items: []
                 };
             }
-
-            // 加入品項
             orderGroup[groupKey].items.push({
-                s: row["系列"] || "",
-                c: row["人物"] || "",
-                t: row["類別"] || "",
-                n: row["名稱"] || "",
-                p: Number(row["單價"]) || 0,
-                q: Number(row["數量"]) || 1
+                s: row["系列"] || "", c: row["人物"] || "", t: row["類別"] || "", n: row["名稱"] || "", p: Number(row["單價"]) || 0, q: Number(row["數量"]) || 1
             });
 
-            // 自動補充 Config 選項
-            if (orderGroup[groupKey].platform && !config.platform.includes(orderGroup[groupKey].platform)) config.platform.push(orderGroup[groupKey].platform);
+            if (!config.platform.includes(orderGroup[groupKey].platform)) config.platform.push(orderGroup[groupKey].platform);
             const item = orderGroup[groupKey].items[orderGroup[groupKey].items.length - 1];
             if (item.s && !config.series.includes(item.s)) config.series.push(item.s);
             if (item.c && !config.char.includes(item.c)) config.char.push(item.c);
             if (item.t && !config.type.includes(item.t)) config.type.push(item.t);
         });
 
-        // 合併到現有 orders 並去重或直接加入
         const importedOrders = Object.values(orderGroup);
         orders = [...importedOrders, ...orders];
-
-        // 存檔並刷新
         saveToLocal();
         localStorage.setItem('m_conf_v9', JSON.stringify(config));
-        updateDropdowns();
-        updateHistory();
-        renderOrders(currentTabArrived);
+        updateDropdowns(); updateHistory(); renderOrders(currentTabArrived);
         alert(`成功匯入 ${importedOrders.length} 筆訂單！`);
-        event.target.value = ''; // 清空 file input
+        event.target.value = '';
     };
     reader.readAsArrayBuffer(file);
 }
