@@ -282,34 +282,38 @@ function exportToExcel() {
 
 function triggerImport() { document.getElementById('importFile').click(); }
 
-// --- 修正後的匯入函數：解決日期跑掉的問題 ---
 function importFromExcel(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true }); // 強制 Excel 讀取日期物件
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true, cellNF: false, cellText: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
+        const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
         
         if (json.length === 0) return alert('檔案內沒有資料！');
-        if (!confirm('將匯入資料並合併，重複的建立時間會視為新訂單，確定嗎？')) return;
+        if (!confirm('將匯入資料並合併，確定嗎？')) return;
 
         const orderGroup = {};
         const parseDate = (val) => {
-            if (!val || val === "未到貨") return null;
-            // 處理如果是 Excel 內建日期物件
+            if (!val || val === "未到貨" || val === "") return null;
             if (val instanceof Date) return val.toISOString();
-            // 處理中文「上午/下午」格式字串
-            let cleanStr = String(val).replace(/上午/g, 'AM').replace(/下午/g, 'PM');
-            const d = new Date(cleanStr);
+            
+            let dateStr = String(val).trim();
+            // 強力解析：處理中文上下午、斜線、空格
+            dateStr = dateStr.replace(/上午/g, ' AM').replace(/下午/g, ' PM').replace(/\//g, '-');
+            
+            const d = new Date(dateStr);
+            // 處理 Excel 可能匯出的數值日期格式
+            if (isNaN(d.getTime()) && !isNaN(val)) {
+                return new Date((val - 25569) * 86400 * 1000).toISOString();
+            }
             return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
         };
 
         json.forEach(row => {
-            const timeRaw = row["建立時間"];
-            const timeISO = parseDate(timeRaw);
+            const timeISO = parseDate(row["建立時間"]);
             const platform = row["平台"] || "未知";
             const seller = row["賣家"] || "未知";
             const groupKey = `${timeISO}_${platform}_${seller}`;
@@ -320,7 +324,7 @@ function importFromExcel(event) {
                     platform: platform, seller: seller, status: row["訂單狀態"] || "已匯款/未下單", note: row["備註"] || "",
                     unpaid: Number(row["未付金額(雜費1)"]) || 0, shipping: Number(row["運費(雜費2)"]) || 0, packing: Number(row["包手(雜費3)"]) || 0,
                     pickup: Number(row["該筆取貨總額"]) || 0, itemTotal: Number(row["訂單商品總額"]) || 0,
-                    time: timeISO, arrived: row["到貨時間"] !== "未到貨", arriveTime: parseDate(row["到貨時間"]), items: []
+                    time: timeISO, arrived: (row["到貨時間"] && row["到貨時間"] !== "未到貨"), arriveTime: parseDate(row["到貨時間"]), items: []
                 };
             }
             orderGroup[groupKey].items.push({
