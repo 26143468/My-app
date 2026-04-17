@@ -296,51 +296,47 @@ function importFromExcel(event) {
 
         const orderGroup = {};
 
-        // --- 超強力手動日期解析函數 ---
         const manualParseDate = (val) => {
             if (!val || val === "未到貨" || val === "") return null;
             if (val instanceof Date) return val.toISOString();
-
             let str = String(val).trim();
             try {
-                // 檢查是否包含上下午
                 let isPM = str.includes('下午') || str.includes('PM');
                 let cleanStr = str.replace(/[上下]午|AM|PM/g, '').trim();
-                
-                // 統一分隔符號
                 cleanStr = cleanStr.replace(/\//g, '-');
-                
                 let parts = cleanStr.split(' ');
                 let datePart = parts[0]; 
                 let timePart = parts[1] || "00:00:00"; 
-                
                 let [y, m, d] = datePart.split('-').map(Number);
                 let tParts = timePart.split(':').map(Number);
                 let hh = tParts[0] || 0;
                 let mm = tParts[1] || 0;
                 let ss = tParts[2] || 0;
-
-                // 修正 12 小時制邏輯
                 if (isPM && hh < 12) hh += 12;
                 if (!isPM && hh === 12) hh = 0;
-
                 const finalDate = new Date(y, m - 1, d, hh, mm, ss);
                 if (isNaN(finalDate.getTime())) throw new Error();
                 return finalDate.toISOString();
             } catch (err) {
-                // 若解析失敗，嘗試用瀏覽器默認解析
                 const backupDate = new Date(val);
                 return isNaN(backupDate.getTime()) ? new Date().toISOString() : backupDate.toISOString();
             }
         };
 
         json.forEach(row => {
-            // 注意：這裡的欄位名稱必須與 Excel 標題完全一致
             const timeISO = manualParseDate(row["建立時間"]);
             const platform = (row["平台"] || "未知").trim();
             const seller = (row["賣家"] || "未知").trim();
             
-            // 使用時間+平台+賣家作為合併群組 Key
+            // --- 修正：更精準判斷到貨狀態 ---
+            const rawArrive = row["到貨時間"];
+            let hasArrived = false;
+            let arriveISO = null;
+            if (rawArrive && rawArrive !== "未到貨" && String(rawArrive).trim() !== "") {
+                arriveISO = manualParseDate(rawArrive);
+                hasArrived = !!arriveISO;
+            }
+            
             const groupKey = `${timeISO}_${platform}_${seller}`;
 
             if (!orderGroup[groupKey]) {
@@ -356,8 +352,8 @@ function importFromExcel(event) {
                     pickup: Number(row["該筆取貨總額"]) || 0,
                     itemTotal: Number(row["訂單商品總額"]) || 0,
                     time: timeISO,
-                    arrived: (row["到貨時間"] && row["到貨時間"] !== "未到貨"),
-                    arriveTime: manualParseDate(row["到貨時間"]),
+                    arrived: hasArrived, // 根據 Excel 是否有時間來決定
+                    arriveTime: arriveISO,
                     items: []
                 };
             }
@@ -371,7 +367,6 @@ function importFromExcel(event) {
                 q: Number(row["數量"]) || 1
             });
 
-            // 同步更新 config
             if (platform && !config.platform.includes(platform)) config.platform.push(platform);
             const item = orderGroup[groupKey].items[orderGroup[groupKey].items.length - 1];
             if (item.s && !config.series.includes(item.s)) config.series.push(item.s);
@@ -381,13 +376,11 @@ function importFromExcel(event) {
 
         const importedOrders = Object.values(orderGroup);
         orders = [...importedOrders, ...orders];
-        
         saveToLocal();
         localStorage.setItem('m_conf_v9', JSON.stringify(config));
         updateDropdowns();
         updateHistory();
         renderOrders(currentTabArrived);
-        
         alert(`成功匯入 ${importedOrders.length} 筆訂單！`);
         event.target.value = '';
     };
