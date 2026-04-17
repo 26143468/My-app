@@ -41,8 +41,7 @@
         .text-purple { color: #6c5ce7; }
         .text-red { color: #ff7675; }
         input, select { height: 38px; width: 100%; padding: 6px; margin: 3px 0; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
-        .p-series { background-color: #f1f2f6 !important; }
-        .p-char, .p-type { background-color: #f1f2f6 !important; }
+        .p-series, .p-char, .p-type { background-color: #f1f2f6 !important; }
         .row { display: flex; gap: 6px; align-items: flex-end; width: 100%; margin-bottom: 4px; }
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .btn-sub { background: var(--primary-light); color: var(--primary); width: 100%; padding: 8px; font-size: 13px; }
@@ -288,7 +287,7 @@ function importFromExcel(event) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true, cellNF: false, cellText: true });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
         
@@ -296,42 +295,84 @@ function importFromExcel(event) {
         if (!confirm('將匯入資料並合併，確定嗎？')) return;
 
         const orderGroup = {};
-        const parseDate = (val) => {
+
+        // --- 超強力手動日期解析函數 ---
+        const manualParseDate = (val) => {
             if (!val || val === "未到貨" || val === "") return null;
             if (val instanceof Date) return val.toISOString();
-            
-            let dateStr = String(val).trim();
-            // 強力解析：處理中文上下午、斜線、空格
-            dateStr = dateStr.replace(/上午/g, ' AM').replace(/下午/g, ' PM').replace(/\//g, '-');
-            
-            const d = new Date(dateStr);
-            // 處理 Excel 可能匯出的數值日期格式
-            if (isNaN(d.getTime()) && !isNaN(val)) {
-                return new Date((val - 25569) * 86400 * 1000).toISOString();
+
+            let str = String(val).trim();
+            try {
+                // 檢查是否包含上下午
+                let isPM = str.includes('下午') || str.includes('PM');
+                let cleanStr = str.replace(/[上下]午|AM|PM/g, '').trim();
+                
+                // 統一分隔符號
+                cleanStr = cleanStr.replace(/\//g, '-');
+                
+                let parts = cleanStr.split(' ');
+                let datePart = parts[0]; 
+                let timePart = parts[1] || "00:00:00"; 
+                
+                let [y, m, d] = datePart.split('-').map(Number);
+                let tParts = timePart.split(':').map(Number);
+                let hh = tParts[0] || 0;
+                let mm = tParts[1] || 0;
+                let ss = tParts[2] || 0;
+
+                // 修正 12 小時制邏輯
+                if (isPM && hh < 12) hh += 12;
+                if (!isPM && hh === 12) hh = 0;
+
+                const finalDate = new Date(y, m - 1, d, hh, mm, ss);
+                if (isNaN(finalDate.getTime())) throw new Error();
+                return finalDate.toISOString();
+            } catch (err) {
+                // 若解析失敗，嘗試用瀏覽器默認解析
+                const backupDate = new Date(val);
+                return isNaN(backupDate.getTime()) ? new Date().toISOString() : backupDate.toISOString();
             }
-            return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
         };
 
         json.forEach(row => {
-            const timeISO = parseDate(row["建立時間"]);
-            const platform = row["平台"] || "未知";
-            const seller = row["賣家"] || "未知";
+            // 注意：這裡的欄位名稱必須與 Excel 標題完全一致
+            const timeISO = manualParseDate(row["建立時間"]);
+            const platform = (row["平台"] || "未知").trim();
+            const seller = (row["賣家"] || "未知").trim();
+            
+            // 使用時間+平台+賣家作為合併群組 Key
             const groupKey = `${timeISO}_${platform}_${seller}`;
 
             if (!orderGroup[groupKey]) {
                 orderGroup[groupKey] = {
                     id: Date.now() + Math.floor(Math.random() * 100000),
-                    platform: platform, seller: seller, status: row["訂單狀態"] || "已匯款/未下單", note: row["備註"] || "",
-                    unpaid: Number(row["未付金額(雜費1)"]) || 0, shipping: Number(row["運費(雜費2)"]) || 0, packing: Number(row["包手(雜費3)"]) || 0,
-                    pickup: Number(row["該筆取貨總額"]) || 0, itemTotal: Number(row["訂單商品總額"]) || 0,
-                    time: timeISO, arrived: (row["到貨時間"] && row["到貨時間"] !== "未到貨"), arriveTime: parseDate(row["到貨時間"]), items: []
+                    platform: platform,
+                    seller: seller,
+                    status: row["訂單狀態"] || "已匯款/未下單",
+                    note: row["備註"] || "",
+                    unpaid: Number(row["未付金額(雜費1)"]) || 0,
+                    shipping: Number(row["運費(雜費2)"]) || 0,
+                    packing: Number(row["包手(雜費3)"]) || 0,
+                    pickup: Number(row["該筆取貨總額"]) || 0,
+                    itemTotal: Number(row["訂單商品總額"]) || 0,
+                    time: timeISO,
+                    arrived: (row["到貨時間"] && row["到貨時間"] !== "未到貨"),
+                    arriveTime: manualParseDate(row["到貨時間"]),
+                    items: []
                 };
             }
+            
             orderGroup[groupKey].items.push({
-                s: row["系列"] || "", c: row["人物"] || "", t: row["類別"] || "", n: row["名稱"] || "", p: Number(row["單價"]) || 0, q: Number(row["數量"]) || 1
+                s: (row["系列"] || "").trim(),
+                c: (row["人物"] || "").trim(),
+                t: (row["類別"] || "").trim(),
+                n: (row["名稱"] || "").trim(),
+                p: Number(row["單價"]) || 0,
+                q: Number(row["數量"]) || 1
             });
 
-            if (!config.platform.includes(orderGroup[groupKey].platform)) config.platform.push(orderGroup[groupKey].platform);
+            // 同步更新 config
+            if (platform && !config.platform.includes(platform)) config.platform.push(platform);
             const item = orderGroup[groupKey].items[orderGroup[groupKey].items.length - 1];
             if (item.s && !config.series.includes(item.s)) config.series.push(item.s);
             if (item.c && !config.char.includes(item.c)) config.char.push(item.c);
@@ -340,9 +381,13 @@ function importFromExcel(event) {
 
         const importedOrders = Object.values(orderGroup);
         orders = [...importedOrders, ...orders];
+        
         saveToLocal();
         localStorage.setItem('m_conf_v9', JSON.stringify(config));
-        updateDropdowns(); updateHistory(); renderOrders(currentTabArrived);
+        updateDropdowns();
+        updateHistory();
+        renderOrders(currentTabArrived);
+        
         alert(`成功匯入 ${importedOrders.length} 筆訂單！`);
         event.target.value = '';
     };
