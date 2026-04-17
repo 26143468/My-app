@@ -7,228 +7,208 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
-        :root { --primary: #6c5ce7; --primary-light: #efeeff; --bg: #f8f9ff; --gray-text: #636e72; --dash-color: #d1d1f0; --price-red: #ff7675; }
+        :root { --primary: #6c5ce7; --primary-light: #efeeff; --bg: #f8f9ff; --red: #ff7675; --dash: #d1d1f0; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 12px; padding-bottom: 80px; }
-        body.modal-open { overflow: hidden; position: fixed; width: 100%; }
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .header h2 { margin: 0; color: var(--primary); font-size: 22px; font-weight: 800; }
-        .settings-icon { font-size: 24px; cursor: pointer; color: #888; }
-        
-        /* 核心卡片與清單樣式 */
-        .card { background: white; padding: 12px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 12px; }
-        .order-item { border-left: 6px solid var(--primary); position: relative; }
-        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .title-text { font-size: 17px; font-weight: 800; color: #333; flex: 1; margin-left: 8px; }
-        
-        /* 標籤樣式 */
-        .tag { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; margin-right: 5px; display: inline-block; }
-        .tag-status { background: #ebfbee; color: #2d8a2d; }
-        .tag-date { background: #f1f2f6; color: #636e72; }
+        /* 標題與基礎卡片 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .header h2 { margin: 0; color: var(--primary); font-size: 24px; font-weight: 900; }
+        .card { background: white; padding: 15px; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 12px; border: none; }
 
-        /* 第一張圖消失的關鍵：待備現金區 */
-        .cash-banner { background: #efeeff; color: var(--primary); padding: 12px 18px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-weight: 900; margin-bottom: 15px; }
-        .cash-amount { font-size: 20px; }
+        /* 1:1 復刻輸入欄位 */
+        .input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        input, select { height: 44px; width: 100%; padding: 10px; border: 1.5px solid #f0f0f0; border-radius: 12px; font-size: 14px; outline: none; }
+        .item-box { background: #fff; border: 1.2px dashed var(--dash); padding: 15px; border-radius: 15px; margin-bottom: 12px; position: relative; }
+        .btn-del-item { position: absolute; right: -8px; top: -8px; background: var(--red); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; font-size: 12px; }
 
-        /* 數據清單顯示區 */
-        .detail-row { display: flex; justify-content: space-between; font-size: 13px; margin-top: 5px; font-weight: 600; color: #555; }
-        .total-highlight { color: var(--price-red); font-weight: 900; font-size: 15px; }
-        .divider { border-top: 1px dashed var(--dash-color); margin: 10px 0; }
+        /* 按鈕 */
+        .btn-add { background: var(--primary-light); color: var(--primary); width: 100%; padding: 12px; border-radius: 12px; font-weight: 800; margin-bottom: 10px; }
+        .btn-save { background: var(--primary); color: white; width: 100%; padding: 16px; border-radius: 15px; font-weight: 800; font-size: 17px; display: flex; justify-content: center; align-items: center; gap: 8px; }
 
-        /* 輸入框樣式 */
-        input, select { height: 40px; width: 100%; padding: 8px; margin: 4px 0; border: 1.5px solid #eee; border-radius: 10px; font-size: 14px; outline: none; }
-        .row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 6px; }
-        .btn-sub { background: var(--primary-light); color: var(--primary); width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 800; margin-top: 5px; }
-        .btn-main { background: var(--primary); color: white; width: 100%; padding: 15px; border-radius: 12px; font-size: 16px; margin-top: 10px; font-weight: 800; }
+        /* 現金 Banner & 搜尋 */
+        .cash-banner { background: #efeeff; padding: 15px 20px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin: 15px 0; }
+        .cash-label { color: var(--primary); font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .cash-value { color: var(--primary); font-size: 20px; font-weight: 900; }
+        .search-area { display: flex; gap: 8px; margin-bottom: 15px; }
+        .search-bar { flex: 1; height: 44px; background: white; border-radius: 12px; display: flex; align-items: center; padding: 0 12px; border: 1.5px solid #f0f0f0; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: white; z-index: 10000; padding: 20px; overflow-y: auto; }
-        .item-box { background: #fafafa; border: 1px dashed #ccc; padding: 12px; border-radius: 10px; margin-bottom: 10px; position: relative; }
-        .btn-del { position: absolute; right: -5px; top: -5px; background: #ff7675; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-
-        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
-        .tab { flex: 1; text-align: center; padding: 12px; background: #eee; border-radius: 10px; font-weight: 800; color: #888; }
+        /* 頁籤 */
+        .tabs { display: flex; gap: 10px; margin-bottom: 12px; }
+        .tab { flex: 1; height: 48px; display: flex; align-items: center; justify-content: center; background: #e9ecef; border-radius: 12px; font-weight: 800; color: #6c757d; }
         .tab.active { background: var(--primary); color: white; }
+
+        /* 訂單卡片：重點復刻數據面板 */
+        .order-item { border-left: 6px solid var(--primary); }
+        .order-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .order-title { font-size: 17px; font-weight: 800; color: #333; }
+        .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .tag { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; background: #f1f2f6; color: #636e72; }
+        .tag-status { background: #ebfbee; color: #2d8a2d; }
+
+        /* 🌟 消失的面板回來了 (對照截圖 1) */
+        .data-panel { border-top: 1px dashed var(--dash); margin-top: 12px; padding-top: 12px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; }
+        .data-cell { font-size: 13px; font-weight: 700; color: #444; display: flex; align-items: center; gap: 4px; }
+        .data-right { justify-content: flex-end; }
+        .text-purple { color: var(--primary); }
+        .text-red { color: var(--red); font-size: 15px; font-weight: 900; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f8f9ff; z-index: 10000; padding: 20px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-<div id="toast" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:20px; z-index:20000;">✅ 已儲存</div>
-
 <div class="header">
-    <h2 id="mainTitle" contenteditable="true" onblur="saveTitle()">📦 沐沐的週邊✨</h2>
-    <div class="settings-icon" onclick="toggleModal('settingsPage', true)">⚙️</div>
+    <h2 id="appTitle" contenteditable="true" onblur="saveTitle()">📦 沐沐的週邊✨</h2>
+    <div style="font-size:26px; cursor:pointer;" onclick="toggleModal('settingsPage', true)">⚙️</div>
 </div>
 
-<div class="card" id="inputForm">
-    <div class="row"><select id="p_platform"></select><input type="text" id="p_seller" placeholder="賣家"></div>
-    <div class="row">
-        <select id="p_status" onchange="autoCalcUnpaid()">
+<div class="card" id="inputSection">
+    <div class="input-row"><select id="in_plat"></select><input type="text" id="in_seller" placeholder="賣家"></div>
+    <div class="input-row">
+        <select id="in_status" onchange="autoCalc()">
             <option>已匯款/未下單</option><option>已匯款/已下單</option>
             <option>貨到付款/未下單</option><option selected>貨到付款/已下單</option>
         </select>
-        <input type="text" id="p_note" placeholder="備註">
+        <input type="text" id="in_note" placeholder="備註">
     </div>
-    <div class="row">
-        <input type="number" id="p_unpaid" placeholder="未付" oninput="updatePickup()">
-        <input type="number" id="p_ship" placeholder="運費" oninput="updatePickup()">
-        <input type="number" id="p_pack" placeholder="包手" value="0" oninput="updatePickup()">
+    <div class="input-row">
+        <input type="number" id="in_unpaid" placeholder="未付" oninput="updateCash()">
+        <input type="number" id="in_ship" placeholder="運費" oninput="updateCash()">
+        <input type="number" id="in_pack" placeholder="包手" value="0" oninput="updateCash()">
     </div>
-    <div id="itemsContainer"></div>
-    <button class="btn-sub" onclick="addItem()">＋增加項目</button>
-    <button class="btn-main" onclick="saveOrder()">💾 儲存整筆訂單</button>
+    <div id="itemInputs"></div>
+    <button class="btn-add" onclick="addOneItem()">＋增加項目</button>
+    <button class="btn-save" onclick="saveData()">💾 儲存整筆訂單</button>
 </div>
 
-<div class="cash-banner">
-    <span>📦 取貨待備現金</span>
-    <span class="cash-amount" id="totalCash">$0</span>
+<div class="search-area">
+    <div class="search-bar">🔍 <input type="text" id="keyword" placeholder="搜尋訂單內容..." style="border:none; height:100%; width:100%; outline:none;" oninput="render()"></div>
+    <div style="width:44px; height:44px; background:white; border-radius:12px; display:flex; align-items:center; justify-content:center; border:1.5px solid #f0f0f0;">⌛</div>
 </div>
 
 <div class="tabs">
-    <div class="tab active" id="tab-0" onclick="switchTab(false)">🎁 未到貨</div>
-    <div class="tab" id="tab-1" onclick="switchTab(true)">🧸 已到貨</div>
+    <div class="tab active" id="tab0" onclick="switchTab(false)">🎁 未到貨</div>
+    <div class="tab" id="tab1" onclick="switchTab(true)">🧸 已到貨</div>
 </div>
 
-<div id="orderList"></div>
-
-<div id="editModal" class="modal">
-    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-        <span onclick="toggleModal('editModal', false)" style="font-size:24px;">✕</span>
-        <h3 style="margin:0;">編輯訂單</h3>
-        <span onclick="saveEdit()" style="font-size:24px;">💾</span>
-    </div>
-    <div id="editFormArea"></div>
+<div class="cash-banner">
+    <div class="cash-label">📦 取貨待備現金</div>
+    <div class="cash-value" id="cashDisp">$0</div>
 </div>
+
+<div id="list"></div>
 
 <div id="settingsPage" class="modal">
-    <div style="display:flex; justify-content:space-between; margin-bottom:20px;"><h3>⚙️ 設定</h3><span onclick="toggleModal('settingsPage', false)" style="font-size:24px;">✕</span></div>
-    <button class="btn-main" style="background:#ffeaa7; color:#d6a312;" onclick="exportExcel()">📥 匯出 Excel 備份</button>
-    <button class="btn-main" style="background:#d1f7d1; color:#2d8a2d;" onclick="document.getElementById('impFile').click()">📤 匯入 Excel 還原</button>
-    <input type="file" id="impFile" style="display:none;" onchange="importExcel(event)">
-    <div id="configEditor" style="margin-top:20px;"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h2>⚙️ 設定</h2><span onclick="toggleModal('settingsPage', false)" style="font-size:30px;">✕</span></div>
+    <button class="btn-save" style="background:#ffeaa7; color:#d6a312; margin-bottom:10px;" onclick="exportXls()">📥 匯出 Excel 備份</button>
+    <button class="btn-save" style="background:#d1f7d1; color:#2d8a2d;" onclick="document.getElementById('fileIn').click()">📤 匯入 Excel 還原</button>
+    <input type="file" id="fileIn" style="display:none;" onchange="importXls(event)">
 </div>
 
 <script>
-let orders = JSON.parse(localStorage.getItem('MU_FINAL_DATA') || '[]');
-let config = JSON.parse(localStorage.getItem('MU_CONFIG') || '{"platform":["FB","蝦皮","美妝蛋","推特"],"series":[],"char":[],"type":[]}');
-let isArrivedTab = false;
-let currentEditId = null;
+let orders = JSON.parse(localStorage.getItem('MU_ULTRA_V12') || '[]');
+let config = JSON.parse(localStorage.getItem('MU_CONF_V12') || '{"platform":["FB","蝦皮","美妝蛋","推特","其他"],"series":[],"char":[],"type":[]}');
+let isArrived = false;
 
-function saveTitle() { localStorage.setItem('MU_TITLE', document.getElementById('mainTitle').innerText); }
+function saveTitle() { localStorage.setItem('MU_TITLE_V12', document.getElementById('appTitle').innerText); }
 function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'block' : 'none'; }
 
-function addItem(containerId = 'itemsContainer', data = null) {
-    const div = document.createElement('div');
-    div.className = 'item-box';
-    div.innerHTML = `
-        <div class="btn-del" onclick="this.parentElement.remove(); updatePickup();">✕</div>
-        <div class="row"><input type="text" class="i-series" placeholder="系列" value="${data?.s||''}"></div>
-        <div class="row">
-            <input type="text" class="i-name" placeholder="名稱" style="flex:2" value="${data?.n||''}">
-            <input type="number" class="i-price" placeholder="單價" style="flex:1" value="${data?.p||''}" oninput="updatePickup()">
-            <input type="number" class="i-qty" placeholder="1" style="flex:0.6" value="${data?.q||1}" oninput="updatePickup()">
+function addOneItem(container = 'itemInputs', val = null) {
+    const div = document.createElement('div'); div.className = 'item-box';
+    div.innerHTML = `<div class="btn-del-item" onclick="this.parentElement.remove(); updateCash();">✕</div>
+        <div class="input-row"><input type="text" class="i-s" placeholder="系列" value="${val?.s||''}">
+        <select class="i-c"></select><select class="i-t"></select></div>
+        <div class="input-row" style="margin-top:8px;">
+            <input type="text" class="i-n" placeholder="名稱" style="flex:2" value="${val?.n||''}">
+            <input type="number" class="i-p" placeholder="單價" style="flex:1" value="${val?.p||''}" oninput="updateCash()">
+            <input type="number" class="i-q" value="${val?.q||1}" style="flex:0.6" oninput="updateCash()">
         </div>`;
-    document.getElementById(containerId).appendChild(div);
+    document.getElementById(container).appendChild(div);
+    const set = (el, k) => el.innerHTML = `<option value="">${k}</option>` + config[k==='人物'?'char':'type'].map(x=>`<option>${x}</option>`).join('');
+    set(div.querySelector('.i-c'), '人物'); set(div.querySelector('.i-t'), '類別');
+    if(val) { div.querySelector('.i-c').value = val.c; div.querySelector('.i-t').value = val.t; }
 }
 
-function autoCalcUnpaid() {
-    const status = document.getElementById('p_status').value;
-    if (status.includes('貨到付款')) {
-        let total = 0;
-        document.querySelectorAll('#itemsContainer .item-box').forEach(box => {
-            total += (Number(box.querySelector('.i-price').value) || 0) * (Number(box.querySelector('.i-qty').value) || 1);
+function autoCalc() {
+    if(document.getElementById('in_status').value.includes('貨到付款')) {
+        let sum = 0; document.querySelectorAll('#itemInputs .item-box').forEach(b => {
+            sum += (Number(b.querySelector('.i-p').value)||0) * (Number(b.querySelector('.i-q').value)||1);
         });
-        document.getElementById('p_unpaid').value = total;
+        document.getElementById('in_unpaid').value = sum;
     }
-    updatePickup();
+    updateCash();
 }
 
-function updatePickup() {
-    let cashSum = 0;
-    orders.filter(o => !o.arrived).forEach(o => cashSum += (Number(o.unpaid)||0) + (Number(o.ship)||0) + (Number(o.pack)||0));
-    document.getElementById('totalCash').innerText = '$' + cashSum;
+function updateCash() {
+    let sum = 0; orders.filter(o => !o.arrived).forEach(o => sum += (o.unpaid + o.ship + o.pack));
+    document.getElementById('cashDisp').innerText = '$' + sum;
 }
 
-function saveOrder() {
-    const items = [];
-    let itemSum = 0;
-    document.querySelectorAll('#itemsContainer .item-box').forEach(box => {
-        const p = Number(box.querySelector('.i-price').value)||0;
-        const q = Number(box.querySelector('.i-qty').value)||1;
-        items.push({ s: box.querySelector('.i-series').value, n: box.querySelector('.i-name').value, p, q });
-        itemSum += p * q;
+function saveData() {
+    const items = []; let iTotal = 0;
+    document.querySelectorAll('#itemInputs .item-box').forEach(b => {
+        const p = Number(b.querySelector('.i-p').value)||0, q = Number(b.querySelector('.i-q').value)||1;
+        items.push({ s: b.querySelector('.i-s').value, c: b.querySelector('.i-c').value, t: b.querySelector('.i-t').value, n: b.querySelector('.i-n').value, p, q });
+        iTotal += p * q;
     });
     const order = {
-        id: Date.now(),
-        platform: document.getElementById('p_platform').value,
-        seller: document.getElementById('p_seller').value,
-        status: document.getElementById('p_status').value,
-        note: document.getElementById('p_note').value,
-        unpaid: Number(document.getElementById('p_unpaid').value)||0,
-        ship: Number(document.getElementById('p_ship').value)||0,
-        pack: Number(document.getElementById('p_pack').value)||0,
-        items: items,
-        itemTotal: itemSum,
-        time: new Date().toISOString(),
-        arrived: false
+        id: Date.now(), plat: document.getElementById('in_plat').value, seller: document.getElementById('in_seller').value,
+        status: document.getElementById('in_status').value, note: document.getElementById('in_note').value,
+        unpaid: Number(document.getElementById('in_unpaid').value)||0, ship: Number(document.getElementById('in_ship').value)||0,
+        pack: Number(document.getElementById('in_pack').value)||0, items, iTotal, time: new Date().toISOString(), arrived: false
     };
-    orders.unshift(order);
-    localStorage.setItem('MU_FINAL_DATA', JSON.stringify(orders));
-    render();
-    document.getElementById('itemsContainer').innerHTML = ''; addItem();
-    document.getElementById('p_seller').value = ''; updatePickup();
+    orders.unshift(order); localStorage.setItem('MU_ULTRA_V12', JSON.stringify(orders));
+    document.getElementById('itemInputs').innerHTML = ''; addOneItem();
+    document.getElementById('in_seller').value = ''; render();
 }
 
 function render() {
-    const list = document.getElementById('orderList');
-    const filtered = orders.filter(o => o.arrived === isArrivedTab);
+    const kw = document.getElementById('keyword').value.toLowerCase();
+    const list = document.getElementById('list');
+    const filtered = orders.filter(o => o.arrived === isArrived && (o.seller.toLowerCase().includes(kw) || o.plat.toLowerCase().includes(kw)));
     list.innerHTML = filtered.map(o => `
         <div class="card order-item">
-            <div class="order-header">
-                <input type="checkbox" style="transform:scale(1.2);" onclick="toggleArrive(${o.id})">
-                <div class="title-text">${o.platform} - ${o.seller}</div>
-                <div style="font-size:12px; color:#888;" onclick="startEdit(${o.id})">編輯 | 刪除</div>
+            <div class="order-top">
+                <input type="checkbox" style="width:20px; height:20px;" onclick="toggleArrive(${o.id})">
+                <div class="order-title">${o.plat} - ${o.seller}</div>
+                <div style="font-size:12px; color:#aaa;">編輯 | 刪除</div>
             </div>
-            <div style="margin-bottom:8px;">
+            <div class="tag-row">
                 <span class="tag tag-status">${o.status}</span>
-                <span class="tag tag-date">${new Date(o.time).toLocaleDateString()}</span>
+                <span class="tag">備註：${o.note || '無'}</span>
+                <span class="tag">${new Date(o.time).toLocaleDateString()}</span>
             </div>
-            <div style="font-size:14px; color:#444;">
+            <div style="font-size:14px; color:#444; margin-bottom:10px;">
                 ${o.items.map(i => `<div>• [${i.s}] ${i.n} $${i.p}x${i.q}</div>`).join('')}
             </div>
-            <div class="divider"></div>
-            <div class="detail-row">
-                <span>💰 商品總額：$${o.itemTotal}</span>
-                <span>🛒 取貨額：$${o.unpaid + o.ship + o.pack}</span>
-            </div>
-            <div class="detail-row">
-                <span>💸 雜費(未/運/包)：${o.unpaid}/${o.ship}/${o.pack}</span>
-                <span class="total-highlight">🔥 全部總計：$${o.itemTotal + o.ship + o.pack}</span>
+            
+            <div class="data-panel">
+                <div class="data-cell">💰 商品總額：$${o.iTotal}</div>
+                <div class="data-cell data-right text-purple">🛒 取貨額：$${o.unpaid + o.ship + o.pack}</div>
+                <div class="data-cell">💸 雜費：${o.unpaid}/${o.ship}/${o.pack}</div>
+                <div class="data-cell data-right text-red">🔥 全部總計：$${o.iTotal + o.ship + o.pack}</div>
             </div>
         </div>
     `).join('');
-    updatePickup();
+    updateCash();
 }
 
-function toggleArrive(id) {
-    const o = orders.find(x => x.id === id);
-    o.arrived = !o.arrived;
-    localStorage.setItem('MU_FINAL_DATA', JSON.stringify(orders));
-    render();
+function toggleArrive(id) { 
+    const o = orders.find(x => x.id === id); o.arrived = !o.arrived; 
+    localStorage.setItem('MU_ULTRA_V12', JSON.stringify(orders)); render(); 
+}
+function switchTab(ar) { 
+    isArrived = ar; 
+    document.getElementById('tab0').className = ar ? 'tab' : 'tab active'; 
+    document.getElementById('tab1').className = ar ? 'tab active' : 'tab'; 
+    render(); 
 }
 
-function switchTab(ar) {
-    isArrivedTab = ar;
-    document.getElementById('tab-0').className = ar ? 'tab' : 'tab active';
-    document.getElementById('tab-1').className = ar ? 'tab active' : 'tab';
-    render();
-}
-
-// 初始化與啟動
-document.getElementById('mainTitle').innerText = localStorage.getItem('MU_TITLE') || '📦 沐沐的週邊✨';
-document.getElementById('p_platform').innerHTML = config.platform.map(p => `<option>${p}</option>`).join('');
-addItem();
-render();
+// 初始化
+document.getElementById('appTitle').innerText = localStorage.getItem('MU_TITLE_V12') || '📦 沐沐的週邊✨';
+document.getElementById('in_plat').innerHTML = config.platform.map(p => `<option>${p}</option>`).join('');
+addOneItem(); render();
 </script>
 </body>
 </html>
