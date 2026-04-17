@@ -22,6 +22,19 @@
         .search-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
         .search-input { flex: 5; padding: 10px 15px; border-radius: 10px; border: 1px solid #e0e0e0; font-size: 14px; outline: none; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
         .sort-btn { flex: 1; height: 40px; background: white; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.03); color: var(--primary); }
+        
+        /* --- 恢復第一張圖的項目方框格式 --- */
+        .item-input-group { background: #fdfdff; border: 1px dashed var(--dash-color); padding: 12px 10px 10px 10px; border-radius: 10px; margin-bottom: 15px; width: 100%; position: relative; }
+        .btn-del-sub { position: absolute; right: -8px; top: -8px; background: #ff7675; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 10; border: 2px solid white; }
+        .btn-drag-sub { position: absolute; left: -8px; top: -8px; background: #eee; color: #888; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: grab; z-index: 10; border: 2px solid white; user-select: none; }
+        .p-series { flex: 1.5; min-width: 0; }
+        .p-char { flex: 1; min-width: 0; }
+        .p-type { flex: 1; min-width: 0; }
+        .p-name { flex: 3; min-width: 0; }
+        .p-price { flex: 1.2; min-width: 0; }
+        .p-qty { flex: 0.8; min-width: 0; }
+        /* ------------------------------- */
+
         .card { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); margin-bottom: 12px; width: 100%; }
         .order-item { border-left: 5px solid var(--primary); padding: 12px; position: relative; }
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
@@ -41,16 +54,12 @@
         .text-purple { color: #6c5ce7; }
         .text-red { color: #ff7675; }
         input, select { height: 38px; width: 100%; padding: 6px; margin: 3px 0; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 13px; outline: none; }
-        .p-series, .p-char, .p-type { background-color: #f1f2f6 !important; }
         .row { display: flex; gap: 6px; align-items: flex-end; width: 100%; margin-bottom: 4px; }
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .btn-sub { background: var(--primary-light); color: var(--primary); width: 100%; padding: 8px; font-size: 13px; }
         .btn-main { background: var(--primary); color: white; width: 100%; padding: 12px; border-radius: 12px; font-size: 15px; margin-top: 8px; font-weight: 800; }
         #toast { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(108, 92, 231, 0.9); color: white; padding: 15px 30px; border-radius: 50px; z-index: 4000; font-weight: 800; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; overflow-y: auto; padding: 20px; }
-        .item-input-group { background: #fdfdff; border: 1px dashed var(--dash-color); padding: 10px; border-radius: 10px; margin-bottom: 10px; width: 100%; position: relative; }
-        .btn-del-sub { position: absolute; right: -5px; top: -5px; background: #ff7675; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; z-index: 10; border: 2px solid white; }
-        .btn-drag-sub { position: absolute; left: -5px; top: -5px; background: #eee; color: #888; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: grab; z-index: 10; border: 2px solid white; user-select: none; }
         .input-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
         .edit-label { font-size: 10.5px; font-weight: bold; color: #636e72; margin-bottom: 1px; margin-left: 2px; white-space: nowrap; display: flex; align-items: center; }
         .time-picker-custom { height: 38px !important; padding: 2px 2px !important; font-size: 13px !important; text-align: center; background: #f1f2f6; border: none !important; border-radius: 8px; letter-spacing: -0.5px; appearance: none; color: #636e72; width: 100%; }
@@ -231,12 +240,32 @@ function saveToLocal() { localStorage.setItem('MU_DATA_V9', JSON.stringify(order
 function toggleModal(id, show) { document.getElementById(id).style.display = show ? 'block' : 'none'; if (show) document.body.classList.add('modal-open'); else document.body.classList.remove('modal-open'); }
 function formatToPicker(iso) { if(!iso) return ""; const d = new Date(iso); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
 function del(id) { if(confirm('確定刪除整筆訂單？')) { orders = orders.filter(x => x.id !== id); saveToLocal(); updateHistory(); renderOrders(currentTabArrived); } }
-function addSubItem(cid, data=null, anchorEl=null) { const sc = document.querySelector(`#${cid} .subContainer`); const div = document.createElement('div'); div.className = 'item-input-group';
-    div.innerHTML = `<div class="btn-drag-sub" onclick="copySubItem(this, '${cid}')">⠿</div><div class="btn-del-sub" onclick="removeSubItem(this, '${cid}')">➖</div><div class="row"><input type="text" class="p-series" placeholder="系列" list="list_series_all"><select class="p-char"></select><select class="p-type"></select></div><div class="row" style="margin-top:5px;"><input type="text" class="p-name" placeholder="名稱" style="flex:3" value="${data?.n||''}"><input type="number" class="p-price" placeholder="單價" style="flex:1" value="${data?.p||''}" oninput="calcPickup('${cid}')"><input type="number" class="p-qty" style="flex:1" value="${data?.q||1}" oninput="calcPickup('${cid}')"></div>`;
+
+// --- 恢復到第一張截圖的 HTML 結構 ---
+function addSubItem(cid, data=null, anchorEl=null) {
+    const sc = document.querySelector(`#${cid} .subContainer`);
+    const div = document.createElement('div');
+    div.className = 'item-input-group';
+    div.innerHTML = `
+        <div class="btn-drag-sub" onclick="copySubItem(this, '${cid}')">⠿</div>
+        <div class="btn-del-sub" onclick="removeSubItem(this, '${cid}')">➖</div>
+        <div class="row">
+            <input type="text" class="p-series" placeholder="系列" list="list_series_all" value="${data?.s||''}">
+            <select class="p-char"></select>
+            <select class="p-type"></select>
+        </div>
+        <div class="row" style="margin-top:8px;">
+            <input type="text" class="p-name" placeholder="名稱" value="${data?.n||''}">
+            <input type="number" class="p-price" placeholder="單價" value="${data?.p||''}" oninput="calcPickup('${cid}')">
+            <input type="number" class="p-qty" value="${data?.q||1}" oninput="calcPickup('${cid}')">
+        </div>`;
     if(anchorEl) anchorEl.insertAdjacentElement('afterend', div); else sc.appendChild(div);
     const setOpt = (el, k) => { el.innerHTML = `<option value="">${k}</option>` + config[k==='人物'?'char':'type'].map(x=>`<option value="${x}">${x}</option>`).join(''); };
-    setOpt(div.querySelector('.p-char'), '人物'); setOpt(div.querySelector('.p-type'), '類別'); if(data) { div.querySelector('.p-series').value=data.s; div.querySelector('.p-char').value=data.c; div.querySelector('.p-type').value=data.t; }
-    checkDelBtn(cid); calcPickup(cid); }
+    setOpt(div.querySelector('.p-char'), '人物'); setOpt(div.querySelector('.p-type'), '類別');
+    if(data) { div.querySelector('.p-char').value=data.c; div.querySelector('.p-type').value=data.t; }
+    checkDelBtn(cid); calcPickup(cid);
+}
+
 function copySubItem(btn, cid) { const parent = btn.parentElement; const data = { s: parent.querySelector('.p-series').value, c: parent.querySelector('.p-char').value, t: parent.querySelector('.p-type').value, n: parent.querySelector('.p-name').value, p: parent.querySelector('.p-price').value, q: parent.querySelector('.p-qty').value }; addSubItem(cid, data, parent); }
 function removeSubItem(btn, cid) { const sc = document.querySelector(`#${cid} .subContainer`); if(sc.querySelectorAll('.item-input-group').length > 1) { btn.parentElement.remove(); checkDelBtn(cid); calcPickup(cid); } }
 function checkDelBtn(cid) { const sc = document.querySelector(`#${cid} .subContainer`); const btns = sc.querySelectorAll('.btn-del-sub'); btns.forEach(b => b.style.display = btns.length === 1 ? 'none' : 'flex'); }
@@ -290,98 +319,56 @@ function importFromExcel(event) {
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, { raw: false });
-        
         if (json.length === 0) return alert('檔案內沒有資料！');
         if (!confirm('將匯入資料並合併，確定嗎？')) return;
-
         const orderGroup = {};
-
         const manualParseDate = (val) => {
             if (!val || val === "未到貨" || val === "") return null;
             if (val instanceof Date) return val.toISOString();
             let str = String(val).trim();
             try {
                 let isPM = str.includes('下午') || str.includes('PM');
-                let cleanStr = str.replace(/[上下]午|AM|PM/g, '').trim();
-                cleanStr = cleanStr.replace(/\//g, '-');
+                let cleanStr = str.replace(/[上下]午|AM|PM/g, '').trim().replace(/\//g, '-');
                 let parts = cleanStr.split(' ');
-                let datePart = parts[0]; 
-                let timePart = parts[1] || "00:00:00"; 
-                let [y, m, d] = datePart.split('-').map(Number);
-                let tParts = timePart.split(':').map(Number);
+                let [y, m, d] = parts[0].split('-').map(Number);
+                let tParts = (parts[1] || "00:00:00").split(':').map(Number);
                 let hh = tParts[0] || 0;
-                let mm = tParts[1] || 0;
-                let ss = tParts[2] || 0;
-                if (isPM && hh < 12) hh += 12;
-                if (!isPM && hh === 12) hh = 0;
-                const finalDate = new Date(y, m - 1, d, hh, mm, ss);
-                if (isNaN(finalDate.getTime())) throw new Error();
-                return finalDate.toISOString();
-            } catch (err) {
-                const backupDate = new Date(val);
-                return isNaN(backupDate.getTime()) ? new Date().toISOString() : backupDate.toISOString();
-            }
+                if (isPM && hh < 12) hh += 12; else if (!isPM && hh === 12) hh = 0;
+                const finalDate = new Date(y, m - 1, d, hh, tParts[1]||0, tParts[2]||0);
+                return isNaN(finalDate.getTime()) ? new Date().toISOString() : finalDate.toISOString();
+            } catch (err) { return new Date().toISOString(); }
         };
-
         json.forEach(row => {
             const timeISO = manualParseDate(row["建立時間"]);
             const platform = (row["平台"] || "未知").trim();
             const seller = (row["賣家"] || "未知").trim();
-            
-            // --- 修正：更精準判斷到貨狀態 ---
             const rawArrive = row["到貨時間"];
-            let hasArrived = false;
-            let arriveISO = null;
+            let hasArrived = false, arriveISO = null;
             if (rawArrive && rawArrive !== "未到貨" && String(rawArrive).trim() !== "") {
                 arriveISO = manualParseDate(rawArrive);
                 hasArrived = !!arriveISO;
             }
-            
             const groupKey = `${timeISO}_${platform}_${seller}`;
-
             if (!orderGroup[groupKey]) {
                 orderGroup[groupKey] = {
                     id: Date.now() + Math.floor(Math.random() * 100000),
-                    platform: platform,
-                    seller: seller,
-                    status: row["訂單狀態"] || "已匯款/未下單",
-                    note: row["備註"] || "",
-                    unpaid: Number(row["未付金額(雜費1)"]) || 0,
-                    shipping: Number(row["運費(雜費2)"]) || 0,
-                    packing: Number(row["包手(雜費3)"]) || 0,
-                    pickup: Number(row["該筆取貨總額"]) || 0,
-                    itemTotal: Number(row["訂單商品總額"]) || 0,
-                    time: timeISO,
-                    arrived: hasArrived, // 根據 Excel 是否有時間來決定
-                    arriveTime: arriveISO,
-                    items: []
+                    platform, seller, status: row["訂單狀態"] || "已匯款/未下單", note: row["備註"] || "",
+                    unpaid: Number(row["未付金額(雜費1)"]) || 0, shipping: Number(row["運費(雜費2)"]) || 0, packing: Number(row["包手(雜費3)"]) || 0,
+                    pickup: Number(row["該筆取貨總額"]) || 0, itemTotal: Number(row["訂單商品總額"]) || 0,
+                    time: timeISO, arrived: hasArrived, arriveTime: arriveISO, items: []
                 };
             }
-            
-            orderGroup[groupKey].items.push({
-                s: (row["系列"] || "").trim(),
-                c: (row["人物"] || "").trim(),
-                t: (row["類別"] || "").trim(),
-                n: (row["名稱"] || "").trim(),
-                p: Number(row["單價"]) || 0,
-                q: Number(row["數量"]) || 1
-            });
-
+            orderGroup[groupKey].items.push({ s: (row["系列"] || "").trim(), c: (row["人物"] || "").trim(), t: (row["類別"] || "").trim(), n: (row["名稱"] || "").trim(), p: Number(row["單價"]) || 0, q: Number(row["數量"]) || 1 });
             if (platform && !config.platform.includes(platform)) config.platform.push(platform);
             const item = orderGroup[groupKey].items[orderGroup[groupKey].items.length - 1];
             if (item.s && !config.series.includes(item.s)) config.series.push(item.s);
             if (item.c && !config.char.includes(item.c)) config.char.push(item.c);
             if (item.t && !config.type.includes(item.t)) config.type.push(item.t);
         });
-
-        const importedOrders = Object.values(orderGroup);
-        orders = [...importedOrders, ...orders];
-        saveToLocal();
-        localStorage.setItem('m_conf_v9', JSON.stringify(config));
-        updateDropdowns();
-        updateHistory();
-        renderOrders(currentTabArrived);
-        alert(`成功匯入 ${importedOrders.length} 筆訂單！`);
+        orders = [...Object.values(orderGroup), ...orders];
+        saveToLocal(); localStorage.setItem('m_conf_v9', JSON.stringify(config));
+        updateDropdowns(); updateHistory(); renderOrders(currentTabArrived);
+        alert(`成功匯入 ${Object.keys(orderGroup).length} 筆訂單！`);
         event.target.value = '';
     };
     reader.readAsArrayBuffer(file);
