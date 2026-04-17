@@ -3,168 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>沐沐的週邊✨</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <title>沐沐的週邊管理</title>
     <style>
-        :root { --primary: #6c5ce7; --primary-light: #efeeff; --bg: #f8f9ff; --gray-text: #636e72; --dash-color: #d1d1f0; --deep-gray: #4a4a4a; --cod-color: #ff7675; }
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 12px; padding-bottom: 80px; }
-        body.modal-open { overflow: hidden; height: 100vh; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .header h2 { margin: 0; color: var(--primary); font-size: 22px; font-weight: 800; }
+        :root { --primary: #6c5ce7; --primary-light: #efeeff; --bg: #f8f9ff; --gray-text: #636e72; --dash-color: #d1d1f0; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 15px; }
         
-        /* --- 關鍵修復：確保 row 內部的比例不會被擠壓 --- */
-        .row { display: flex; gap: 8px; align-items: center; width: 100%; margin-bottom: 8px; }
-        /* 讓下拉選單(select)有最低寬度，不被右邊 input 擠扁 */
-        #sel_platform, #edit_platform, #sel_status, #edit_status { flex: 1.5; min-width: 0; }
-        #seller, #edit_seller, #order_note, #edit_note { flex: 1.8; min-width: 0; }
+        /* 核心彈窗與版面 */
+        .modal { display: block; position: relative; background: white; width: 100%; min-height: 100vh; padding: 10px; }
+        .row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; width: 100%; }
         
-        /* 週邊項目內的比例 */
-        .p-series { flex: 1.5; min-width: 0; }
-        .p-char, .p-type { flex: 1; min-width: 0; }
-        .p-name { flex: 3; min-width: 0; }
-        .p-price { flex: 1.2; min-width: 0; }
-        .p-qty { flex: 0.8; min-width: 0; }
+        /* 頂部訂單資訊比例控制 */
+        #edit_platform { flex: 1.2; } /* 平台選單 */
+        #edit_seller { flex: 1.8; }   /* 賣家輸入框 */
+        #edit_status { flex: 1.6; }   /* 狀態選單 */
+        #edit_note { flex: 1.4; }     /* 備註輸入框 */
 
-        .item-input-group { background: #fdfdff; border: 1px dashed var(--dash-color); padding: 15px 10px 10px 10px; border-radius: 10px; margin-bottom: 15px; width: 100%; position: relative; }
-        .btn-del-sub { position: absolute; right: -8px; top: -8px; background: #ff7675; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; z-index: 10; }
-        .btn-drag-sub { position: absolute; left: -8px; top: -8px; background: #eee; color: #888; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white; z-index: 10; }
+        /* 數值欄位均分 */
+        .num-row input { flex: 1; text-align: center; }
+
+        /* 時間選擇器區域 */
+        .time-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .time-label { font-size: 12px; color: var(--gray-text); display: flex; align-items: center; gap: 4px; font-weight: bold; }
+        .time-input { background: #f1f2f6; border: none; height: 38px; border-radius: 8px; padding: 0 8px; width: 100%; font-size: 13px; color: #555; }
+
+        /* 週邊項目群組 - 嚴格遵守截圖比例 */
+        .item-input-group { 
+            background: #fff; border: 1px dashed var(--dash-color); 
+            padding: 15px 10px 10px 10px; border-radius: 12px; 
+            margin-bottom: 15px; position: relative; width: 100%; 
+        }
+        .item-row-1 .p-series { flex: 1.4; }
+        .item-row-1 .p-char { flex: 1; }
+        .item-row-1 .p-type { flex: 1; }
+        .item-row-2 { margin-top: 8px; }
+        .item-row-2 .p-name { flex: 2.5; }
+        .item-row-2 .p-price { flex: 1; }
+        .item-row-2 .p-qty { flex: 0.8; }
+
+        /* 漂浮按鈕定位 */
+        .btn-del-sub { position: absolute; right: -8px; top: -8px; background: #ff7675; color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-drag-sub { position: absolute; left: -8px; top: -8px; background: #e0e0e0; color: #888; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; }
+
+        /* 通用元件樣式 */
+        input, select { height: 40px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0 10px; font-size: 14px; outline: none; width: 100%; }
+        input:focus { border-color: var(--primary); }
+        .btn-add { background: var(--primary-light); color: var(--primary); width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; border: none; margin-top: 5px; font-size: 14px; }
         
-        /* 其他 UI 樣式 */
-        .card { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); margin-bottom: 12px; }
-        input, select { height: 40px; padding: 0 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; background: #fff; }
-        .btn-main { background: var(--primary); color: white; width: 100%; padding: 12px; border-radius: 12px; font-size: 15px; font-weight: 800; margin-top: 10px; }
-        .btn-sub { background: var(--primary-light); color: var(--primary); width: 100%; padding: 10px; border-radius: 8px; font-size: 13px; margin-top: 5px; font-weight: 800; border: none; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; overflow-y: auto; padding: 20px; }
-        .input-wrapper { flex: 1; display: flex; flex-direction: column; }
-        .edit-label { font-size: 11px; font-weight: bold; color: var(--gray-text); margin-bottom: 4px; }
-        .time-picker-custom { background: #f1f2f6; border: none; height: 40px; }
+        .header-tools { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .icon-btn { font-size: 24px; cursor: pointer; color: #555; }
     </style>
 </head>
 <body>
-<datalist id="list_sellers"></datalist>
-<datalist id="list_series_all"></datalist>
 
-<div class="header"><h2>📦 沐沐的週邊✨</h2></div>
-
-<div class="card" id="mainInputForm">
-    <div class="row">
-        <select id="sel_platform"></select>
-        <input type="text" id="seller" placeholder="賣家" list="list_sellers">
+<div class="modal">
+    <div class="header-tools">
+        <span class="icon-btn">✖</span>
+        <strong style="font-size: 18px;">編輯訂單</strong>
+        <span class="icon-btn">💾</span>
     </div>
+
     <div class="row">
-        <select id="sel_status" onchange="calcPickup('mainInputForm')">
-            <option>已匯款/未下單</option><option>已匯款/已下單</option>
-            <option>貨到付款/未下單</option><option selected>貨到付款/已下單</option>
+        <select id="edit_platform">
+            <option>FB</option><option>蝦皮</option><option>買貨便</option>
         </select>
-        <input type="text" id="order_note" placeholder="備註">
+        <input type="text" id="edit_seller" placeholder="賣家" value="楚小薇">
     </div>
+
     <div class="row">
-        <input type="number" id="unpaid_fee" style="flex:1" placeholder="未付" oninput="calcPickup('mainInputForm')">
-        <input type="number" id="shipping" style="flex:1" placeholder="運費" oninput="calcPickup('mainInputForm')">
-        <input type="number" id="packing_fee" style="flex:0.8" placeholder="包手" oninput="calcPickup('mainInputForm')">
-        <input type="number" id="pickup_total" style="flex:1; background:#f9f9f9" placeholder="取貨" readonly>
+        <select id="edit_status">
+            <option>貨到付款/已下單</option><option>已匯款/已下單</option>
+        </select>
+        <input type="text" id="edit_note" placeholder="備註">
     </div>
-    <div class="subContainer" id="mainSubContainer"></div>
-    <button class="btn-sub" onclick="addSubItem('mainInputForm')">＋增加項目</button>
-    <button class="btn-main" onclick="handleSave('mainInputForm')">💾 儲存整筆訂單</button>
+
+    <div class="row num-row">
+        <input type="number" id="edit_unpaid" placeholder="未付" value="950">
+        <input type="number" id="edit_shipping" placeholder="運費" value="38">
+        <input type="number" id="edit_packing" placeholder="包手" value="0">
+        <input type="number" id="edit_pickup" style="background:#f9f9f9" value="988" readonly>
+    </div>
+
+    <div class="row">
+        <div class="time-group">
+            <div class="time-label">🕒 建立時間</div>
+            <input type="text" class="time-input" value="2026年4月11日 20:56" readonly>
+        </div>
+        <div class="time-group">
+            <div class="time-label">
+                <input type="checkbox" checked style="width:16px; height:16px; margin:0;"> ✅ 到貨時間
+            </div>
+            <input type="text" class="time-input" placeholder="請選擇時間">
+        </div>
+    </div>
+
+    <div id="subContainer" style="margin-top: 15px;">
+        <div class="item-input-group">
+            <div class="btn-drag-sub">⠿</div>
+            <div class="btn-del-sub">➖</div>
+            
+            <div class="row item-row-1">
+                <input type="text" class="p-series" placeholder="系列" value="聯名周邊">
+                <select class="p-char"><option>全員</option></select>
+                <select class="p-type"><option>相卡</option></select>
+            </div>
+            
+            <div class="row item-row-2">
+                <input type="text" class="p-name" placeholder="名稱" value="支付寶聯動卡">
+                <input type="number" class="p-price" placeholder="單價" value="950">
+                <input type="number" class="p-qty" value="1">
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-add">＋增加項目</button>
 </div>
 
-<div id="mainList"></div>
-
-<div id="editModal" class="modal">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <span onclick="toggleModal('editModal', false)" style="font-size:24px;">✖</span>
-        <h3 style="margin:0;">編輯訂單</h3>
-        <span onclick="handleSave('editModal')" style="font-size:24px; cursor:pointer;">💾</span>
-    </div>
-    <div id="editForm">
-        <div class="row"><select id="edit_platform"></select><input type="text" id="edit_seller" placeholder="賣家"></div>
-        <div class="row">
-            <select id="edit_status" onchange="calcPickup('editModal')">
-                <option>已匯款/未下單</option><option>已匯款/已下單</option>
-                <option>貨到付款/未下單</option><option>貨到付款/已下單</option>
-            </select>
-            <input type="text" id="edit_note" placeholder="備註">
-        </div>
-        <div class="row">
-            <input type="number" id="edit_unpaid" placeholder="未付" oninput="calcPickup('editModal')">
-            <input type="number" id="edit_shipping" placeholder="運費" oninput="calcPickup('editModal')">
-            <input type="number" id="edit_packing" placeholder="包手" oninput="calcPickup('editModal')">
-            <input type="number" id="edit_pickup" style="background:#f9f9f9" readonly>
-        </div>
-        <div class="row">
-            <div class="input-wrapper"><span class="edit-label">🕒 建立時間</span><input type="datetime-local" id="edit_time_picker" class="time-picker-custom"></div>
-            <div class="input-wrapper"><span class="edit-label">✅ 到貨時間</span><input type="datetime-local" id="edit_arrive_picker" class="time-picker-custom"></div>
-        </div>
-        <div class="subContainer" id="editSubContainer" style="margin-top:15px;"></div>
-        <button class="btn-sub" onclick="addSubItem('editModal')">＋增加項目</button>
-    </div>
-</div>
-
-<script>
-let orders = JSON.parse(localStorage.getItem('MU_DATA_V9') || '[]');
-let config = JSON.parse(localStorage.getItem('m_conf_v9') || '{"platform":["FB","蝦皮","買貨便","其他"],"series":[],"char":[],"type":[]}');
-let editingId = null;
-
-function saveToLocal() { localStorage.setItem('MU_DATA_V9', JSON.stringify(orders)); }
-
-function toggleModal(id, show) { 
-    document.getElementById(id).style.display = show ? 'block' : 'none';
-    document.body.classList.toggle('modal-open', show);
-}
-
-function addSubItem(cid, data=null, anchorEl=null) {
-    const sc = document.querySelector(`#${cid} .subContainer`);
-    const div = document.createElement('div');
-    div.className = 'item-input-group';
-    div.innerHTML = `
-        <div class="btn-drag-sub">⠿</div>
-        <div class="btn-del-sub" onclick="this.parentElement.remove(); calcPickup('${cid}')">➖</div>
-        <div class="row">
-            <input type="text" class="p-series" placeholder="系列" list="list_series_all" value="${data?.s||''}">
-            <select class="p-char"></select>
-            <select class="p-type"></select>
-        </div>
-        <div class="row" style="margin-top:8px;">
-            <input type="text" class="p-name" placeholder="名稱" value="${data?.n||''}">
-            <input type="number" class="p-price" placeholder="單價" value="${data?.p||''}" oninput="calcPickup('${cid}')">
-            <input type="number" class="p-qty" value="${data?.q||1}" oninput="calcPickup('${cid}')">
-        </div>`;
-    sc.appendChild(div);
-    const setOpt = (el, k) => { el.innerHTML = `<option value="">${k}</option>` + config[k==='人物'?'char':'type'].map(x=>`<option value="${x}">${x}</option>`).join(''); };
-    setOpt(div.querySelector('.p-char'), '人物'); setOpt(div.querySelector('.p-type'), '類別');
-    if(data) { div.querySelector('.p-char').value=data.c; div.querySelector('.p-type').value=data.t; }
-    calcPickup(cid);
-}
-
-function calcPickup(cid) {
-    const box = document.getElementById(cid);
-    const isE = cid === 'editModal';
-    let itemSum = 0;
-    box.querySelectorAll('.item-input-group').forEach(r => {
-        itemSum += (Number(r.querySelector('.p-price').value) || 0) * (Number(r.querySelector('.p-qty').value) || 1);
-    });
-    const status = box.querySelector(isE ? '#edit_status' : '#sel_status').value;
-    const unpaidInput = box.querySelector(isE ? '#edit_unpaid' : '#unpaid_fee');
-    if (status.includes('貨到付款')) unpaidInput.value = itemSum;
-    
-    const u = Number(unpaidInput.value) || 0;
-    const s = Number(box.querySelector(isE ? '#edit_shipping' : '#shipping').value) || 0;
-    const p = Number(box.querySelector(isE ? '#edit_packing' : '#packing_fee').value) || 0;
-    box.querySelector(isE ? '#edit_pickup' : '#pickup_total').value = u + s + p;
-}
-
-function updateDropdowns() {
-    const opt = (arr, h) => `<option value="">${h}</option>` + arr.map(x=>`<option value="${x}">${x}</option>`).join('');
-    document.getElementById('sel_platform').innerHTML = opt(config.platform, '選擇平台');
-    document.getElementById('edit_platform').innerHTML = opt(config.platform, '選擇平台');
-}
-
-// 初始化
-updateDropdowns();
-addSubItem('mainInputForm');
-</script>
 </body>
 </html>
